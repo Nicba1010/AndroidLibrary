@@ -67,7 +67,7 @@
 
     <com.nicba1010.utils.views.PieChartView
         android:id="@+id/pie"
-        android:layout_width="220dp"
-        android:layout_height="220dp" />
+        android:layout_width="300dp"
+        android:layout_height="300dp" />
 
 </LinearLayout>

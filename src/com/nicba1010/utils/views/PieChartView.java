@@ -1,17 +1,21 @@
 package com.nicba1010.utils.views;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Random;
 
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Paint.Align;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Toast;
 
 import com.nicba1010.utils.viewutils.PieChartElement;
@@ -38,34 +42,50 @@ public class PieChartView extends View {
 		elements.add(new PieChartElement("Female", 330, Color.RED));
 		elements.add(new PieChartElement("Male", 550, Color.BLUE));
 		elements.add(new PieChartElement("Sheep", 440, Color.LTGRAY));
-		bgpaint = new Paint();
-		bgpaint.setColor(Color.WHITE);
-		bgpaint.setAntiAlias(true);
-		bgpaint.setStyle(Paint.Style.FILL);
 		rect = new RectF();
 		rectSelect = new RectF();
+		blackOutlinePaint = new Paint();
+		blackOutlinePaint.setColor(Color.BLACK);
+		blackOutlinePaint.setAntiAlias(true);
+		blackOutlinePaint.setStyle(Paint.Style.STROKE);
+		blackOutlinePaint.setStrokeWidth(2);
+		black = new Paint();
+		black.setColor(Color.BLACK);
+		black.setAntiAlias(true);
+		white = new Paint();
+		white.setColor(Color.WHITE);
+		white.setAntiAlias(true);
+		white.setStyle(Paint.Style.STROKE);
+		white.setStrokeWidth(3);
+		blackOutlinePaint.setStrokeWidth(2);
 		updateValues();
 	}
 
-	Paint bgpaint;
 	RectF rect;
 	RectF rectSelect;
 	ArrayList<PieChartElement> elements = new ArrayList<PieChartElement>();
 	float totalAmount;
 	PieChartElement selected;
+	Paint blackOutlinePaint;
+	Paint black;
+	Paint white;
+
+	float rads = 0;
 
 	@Override
 	protected void onDraw(Canvas canvas) {
 		super.onDraw(canvas);
 		// draw background circle anyway
-		int left = 0;
-		int width = getWidth();
-		int top = 0;
+		int left = (int) (getHeight() * 0.05f);
+		int radius = (int) (getHeight() * 0.9f);
+		int top = (int) (getHeight() * 0.05f);
 		int last = 0;
 		if (selected == null)
-			rect.set(left, top, left + width, top + width);
-		rectSelect.set(left, top, left + width, top + width);
-		// canvas.drawArc(rect, -90, 360, true, bgpaint);
+			rect.set(left, top, left + radius, top + radius);
+		rectSelect.set(left, top, left + radius, top + radius);
+		float from = 0;
+		float total = 0;
+		boolean found = false;
 		for (PieChartElement e : elements) {
 			if (elements.indexOf(e) == (elements.size() - 1)) {
 				canvas.drawArc(
@@ -85,13 +105,84 @@ public class PieChartView extends View {
 								.getColor()) : e.getColor());
 				last += 360 * e.getPercentage();
 			}
+			if (selected != null) {
+				from += !found ? e.getPercentage() : 0f;
+				if (selected.equals(e)) {
+					found = true;
+				}
+			}
+		}
+		for (PieChartElement e : elements) {
+			canvas.drawLine(
+					rect.centerX(),
+					rect.centerY(),
+					(float) (rect.centerX() + (rect.width() / 2)
+							* Math.cos(Math.toRadians(total - 90))),
+					(float) (rect.centerY() + (rect.width() / 2)
+							* Math.sin(Math.toRadians(total - 90))),
+					blackOutlinePaint);
+			total += e.getPercentage() * 360f;
+		}
+		from *= 360f;
+		canvas.drawArc(rect, -90 + (selected != null ? from : 0),
+				360 - (selected != null ? selected.getPercentage() * 360 : 0),
+				true, blackOutlinePaint);
+		if (selected != null) {
+			canvas.drawArc(rectSelect, -90 + from - selected.getPercentage()
+					* 360, selected.getPercentage() * 360, true,
+					blackOutlinePaint);
+			drawCeneteredText(
+					canvas,
+					selected.getName() + " "
+							+ round(selected.getPercentage() * 100, 2) + "%",
+					rectSelect.centerX(), rectSelect.centerY(), white, 25);
+			drawCeneteredText(
+					canvas,
+					selected.getName() + " "
+							+ round(selected.getPercentage() * 100, 2) + "%",
+					rectSelect.centerX(), rectSelect.centerY(), black, 25);
 		}
 	}
 
 	@Override
+	protected void onFocusChanged(boolean gainFocus, int direction,
+			Rect previouslyFocusedRect) {
+		System.out.println(gainFocus);
+		if (!gainFocus) {
+			selected = null;
+			invalidate();
+		}
+		super.onFocusChanged(gainFocus, direction, previouslyFocusedRect);
+	}
+
+	public void drawCeneteredText(Canvas canvas, String text, float x, float y,
+			Paint paint, int sizeText) {
+		Paint textPaint = new Paint(paint);
+		textPaint.setTextAlign(Align.CENTER);
+		textPaint.setTextSize(sizeText
+				* (rectSelect.width() > 297f ? rectSelect.width() / 297f : 1f));
+		int xPos = (int) (rectSelect.right - (rectSelect.width() / 2));
+		int yPos = (int) (rectSelect.bottom - (rectSelect.height() / 2) - ((textPaint
+				.descent() + textPaint.ascent()) / 2));
+
+		canvas.drawText(text, xPos, yPos, textPaint);
+	}
+
+	public static float round(float d, int decimalPlace) {
+		BigDecimal bd = new BigDecimal(Float.toString(d));
+		bd = bd.setScale(decimalPlace, BigDecimal.ROUND_HALF_UP);
+		return bd.floatValue();
+	}
+
+	@Override
 	public boolean onTouchEvent(MotionEvent event) {
-		double deltaX = event.getX() - this.getWidth() / 2;
-		double deltaY = -(event.getY() - this.getHeight() / 2);
+		if (event.getAction() == MotionEvent.ACTION_OUTSIDE) {
+			selected = null;
+			invalidate();
+			return true;
+		}
+		double deltaX = event.getX() - rect.width() / 2;
+		double deltaY = -(event.getY() - rect.height() / 2);
 		double fromMid = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 		boolean inCircle = fromMid < (rectSelect.bottom / 2);
 		if (inCircle) {
@@ -115,7 +206,7 @@ public class PieChartView extends View {
 				Toast.makeText(getContext(), "ERROR", Toast.LENGTH_LONG).show();
 			} else {
 				if (selected == null) {
-					scaleRectF(rect, 0.9f);
+					scaleRectF(rect, 0.9f, 500);
 				}
 				selected = elements.get(index);
 				invalidate();
@@ -127,21 +218,99 @@ public class PieChartView extends View {
 				// + angleInDegrees + " : " + percentage + " : " + index);
 			}
 		} else {
-			selected = null;
-			invalidate();
+			if (selected != null) {
+				selected = null;
+				invalidate();
+			}
 		}
 		return super.onTouchEvent(event);
 	}
 
-	public void scaleRectF(RectF rect, float factor) {
-		float diffHorizontal = (rect.right - rect.left) * (factor - 1f);
-		float diffVertical = (rect.bottom - rect.top) * (factor - 1f);
+	class ScalerRunnable extends Thread {
+		PieChartView chartView;
+		float factor;
+		long timeinmillis;
+		private RectF rect;
 
-		rect.top -= diffVertical / 2f;
-		rect.bottom += diffVertical / 2f;
+		public ScalerRunnable(PieChartView chartView, float factor,
+				long timeinmillis, RectF rect) {
+			super();
+			this.chartView = chartView;
+			this.factor = factor;
+			this.timeinmillis = timeinmillis;
+			this.rect = rect;
+		}
 
-		rect.left -= diffHorizontal / 2f;
-		rect.right += diffHorizontal / 2f;
+		long timePassed;
+
+		@Override
+		public void run() {
+			while (true) {
+				long t1 = System.currentTimeMillis();
+				if (timePassed > timeinmillis) {
+					int left = (int) (getHeight() * 0.05f);
+					int radius = (int) (getHeight() * 0.9f);
+					int top = (int) (getHeight() * 0.05f);
+					rect.set(left, top, left + radius, top + radius);
+					float diffHorizontal = (rect.right - rect.left)
+							* (factor - 1f);
+					float diffVertical = (rect.bottom - rect.top)
+							* (factor - 1f);
+
+					rect.top -= diffVertical / 2f;
+					rect.bottom += diffVertical / 2f;
+
+					rect.left -= diffHorizontal / 2f;
+					rect.right += diffHorizontal / 2f;
+					chartView.post(new Runnable() {
+						@Override
+						public void run() {
+							chartView.invalidate();
+						}
+					});
+					return;
+				} else {
+					int left = (int) (getHeight() * 0.05f);
+					int radius = (int) (getHeight() * 0.9f);
+					int top = (int) (getHeight() * 0.05f);
+					rect.set(left, top, left + radius, top + radius);
+					float fac = -(timePassed / (float) timeinmillis)
+							* (1f - factor);
+					float diffHorizontal = (rect.right - rect.left) * fac;
+					float diffVertical = (rect.bottom - rect.top) * fac;
+
+					rect.top -= diffVertical / 2f;
+					rect.bottom += diffVertical / 2f;
+
+					rect.left -= diffHorizontal / 2f;
+					rect.right += diffHorizontal / 2f;
+				}
+				chartView.post(new Runnable() {
+					@Override
+					public void run() {
+						chartView.invalidate();
+					}
+				});
+				try {
+					Thread.currentThread().sleep(50);
+				} catch (Exception ex) {
+				}
+
+				timePassed += System.currentTimeMillis() - t1;
+			}
+		}
+	}
+
+	public void scaleRectF(RectF rect, float factor, long timeinmillis) {
+		new ScalerRunnable(this, factor, timeinmillis, rect).start();
+		// float diffHorizontal = (rect.right - rect.left) * (factor - 1f);
+		// float diffVertical = (rect.bottom - rect.top) * (factor - 1f);
+		//
+		// rect.top -= diffVertical / 2f;
+		// rect.bottom += diffVertical / 2f;
+		//
+		// rect.left -= diffHorizontal / 2f;
+		// rect.right += diffHorizontal / 2f;
 	}
 
 	public int getAmountOfElements() {
