@@ -2,6 +2,7 @@ package com.nicba1010.utils.views;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Queue;
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -10,18 +11,21 @@ import android.graphics.Paint;
 import android.graphics.Paint.Align;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.media.MediaScannerConnection.OnScanCompletedListener;
+import android.net.Uri;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.Window;
-import android.view.WindowManager;
 import android.widget.Toast;
 
-import com.nicba1010.utils.viewutils.PieChartElement;
+import com.nicba1010.utils.viewutils.OnScaleCompleteListener;
+import com.nicba1010.utils.viewutils.PieChartSlice;
 
-public class PieChartView extends View {
+public class PieChartView extends View implements OnScaleCompleteListener {
 	private static final String TAG = "PieChartView";
+	private OnSliceSelectedListener onSliceSelectedListener;
+	Buffer scaleTaskBuffer = new Buffer();
 
 	public PieChartView(Context context) {
 		super(context);
@@ -38,10 +42,50 @@ public class PieChartView extends View {
 		init();
 	}
 
+	public interface OnSliceSelectedListener {
+		public abstract void onSliceSelected(View v, PieChartSlice e);
+	}
+
+	public void setOnSliceSelectedListener(
+			OnSliceSelectedListener _onSliceSelectedListener) {
+		this.onSliceSelectedListener = _onSliceSelectedListener;
+	}
+
+	class Buffer {
+		ArrayList<ScalerThread> scaleQueue = new ArrayList<PieChartView.ScalerThread>();
+		boolean executing = false;
+
+		public synchronized void insert(ScalerThread s) {
+			scaleQueue.add(s);
+			if (scaleQueue.size() == 1) {
+				dispatch();
+			}
+		}
+
+		public synchronized void dispatch() {
+			scaleQueue.get(0).start();
+			executing = true;
+
+		}
+
+		public synchronized void remove() {
+			scaleQueue.remove(0);
+		}
+	}
+
+	@Override
+	public void onScaleComplete() {
+		scaleTaskBuffer.executing = false;
+		scaleTaskBuffer.remove();
+		if (scaleTaskBuffer.scaleQueue.size() > 0) {
+			scaleTaskBuffer.dispatch();
+		}
+	}
+
 	private void init() {
-		elements.add(new PieChartElement("Female", 330, Color.RED));
-		elements.add(new PieChartElement("Male", 550, Color.BLUE));
-		elements.add(new PieChartElement("Sheep", 440, Color.LTGRAY));
+		slices.add(new PieChartSlice("Female", 330, Color.RED));
+		slices.add(new PieChartSlice("Male", 550, Color.BLUE));
+		slices.add(new PieChartSlice("Sheep", 440, Color.LTGRAY));
 		rect = new RectF();
 		rectSelect = new RectF();
 		blackOutlinePaint = new Paint();
@@ -63,9 +107,9 @@ public class PieChartView extends View {
 
 	RectF rect;
 	RectF rectSelect;
-	ArrayList<PieChartElement> elements = new ArrayList<PieChartElement>();
+	ArrayList<PieChartSlice> slices = new ArrayList<PieChartSlice>();
 	float totalAmount;
-	PieChartElement selected;
+	PieChartSlice selected;
 	Paint blackOutlinePaint;
 	Paint black;
 	Paint white;
@@ -77,17 +121,17 @@ public class PieChartView extends View {
 		super.onDraw(canvas);
 		// draw background circle anyway
 		int left = (int) (getHeight() * 0.05f);
-		int radius = (int) (getHeight() * 0.9f);
+		int diameter = (int) (getHeight() * 0.9f);
 		int top = (int) (getHeight() * 0.05f);
 		int last = 0;
-		if (selected == null)
-			rect.set(left, top, left + radius, top + radius);
-		rectSelect.set(left, top, left + radius, top + radius);
+		if (selected == null && !scaleTaskBuffer.executing)
+			rect.set(left, top, left + diameter, top + diameter);
+		rectSelect.set(left, top, left + diameter, top + diameter);
 		float from = 0;
 		float total = 0;
 		boolean found = false;
-		for (PieChartElement e : elements) {
-			if (elements.indexOf(e) == (elements.size() - 1)) {
+		for (PieChartSlice e : slices) {
+			if (slices.indexOf(e) == (slices.size() - 1)) {
 				canvas.drawArc(
 						e.equals(selected) ? rectSelect : rect,
 						-90 + last,
@@ -112,7 +156,7 @@ public class PieChartView extends View {
 				}
 			}
 		}
-		for (PieChartElement e : elements) {
+		for (PieChartSlice e : slices) {
 			canvas.drawLine(
 					rect.centerX(),
 					rect.centerY(),
@@ -131,16 +175,12 @@ public class PieChartView extends View {
 			canvas.drawArc(rectSelect, -90 + from - selected.getPercentage()
 					* 360, selected.getPercentage() * 360, true,
 					blackOutlinePaint);
-			drawCeneteredText(
+			drawOutlinedCenteredText(
 					canvas,
 					selected.getName() + " "
 							+ round(selected.getPercentage() * 100, 2) + "%",
-					rectSelect.centerX(), rectSelect.centerY(), white, 25);
-			drawCeneteredText(
-					canvas,
-					selected.getName() + " "
-							+ round(selected.getPercentage() * 100, 2) + "%",
-					rectSelect.centerX(), rectSelect.centerY(), black, 25);
+					rectSelect.centerX(), rectSelect.centerY(), black, white,
+					25);
 		}
 	}
 
@@ -153,6 +193,12 @@ public class PieChartView extends View {
 			invalidate();
 		}
 		super.onFocusChanged(gainFocus, direction, previouslyFocusedRect);
+	}
+
+	public void drawOutlinedCenteredText(Canvas canvas, String text, float x,
+			float y, Paint paint, Paint outline, int sizeText) {
+		drawCeneteredText(canvas, text, x, y, outline, sizeText);
+		drawCeneteredText(canvas, text, x, y, paint, sizeText);
 	}
 
 	public void drawCeneteredText(Canvas canvas, String text, float x, float y,
@@ -174,6 +220,13 @@ public class PieChartView extends View {
 		return bd.floatValue();
 	}
 
+	public double getPositionOnCircumference(double deltaX, double deltaY) {
+		double temp = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+		temp = (temp > 0 ? temp : 360D - Math.abs(temp)) - 90;
+		temp = temp > 0 ? temp : 360D + temp;
+		return Math.abs(temp - 360);
+	}
+
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
 		if (event.getAction() == MotionEvent.ACTION_OUTSIDE) {
@@ -181,19 +234,16 @@ public class PieChartView extends View {
 			invalidate();
 			return true;
 		}
-		double deltaX = event.getX() - rect.width() / 2;
-		double deltaY = -(event.getY() - rect.height() / 2);
+		double deltaX = event.getX() - rect.width() / 2 - rect.left;
+		double deltaY = -(event.getY() - rect.height() / 2 - rect.top);
 		double fromMid = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 		boolean inCircle = fromMid < (rectSelect.bottom / 2);
 		if (inCircle) {
-			double temp = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
-			temp = (temp > 0 ? temp : 360D - Math.abs(temp)) - 90;
-			temp = temp > 0 ? temp : 360D + temp;
-			double angleInDegrees = Math.abs(temp - 360);
+			double angleInDegrees = getPositionOnCircumference(deltaX, deltaY);
 			float percentage = (float) (angleInDegrees / 360f);
 			float totalPerc = 0;
 			int index = -1, i = 0;
-			for (PieChartElement e : elements) {
+			for (PieChartSlice e : slices) {
 				if (percentage > totalPerc) {
 					index = i;
 				} else if (percentage < totalPerc) {
@@ -205,116 +255,118 @@ public class PieChartView extends View {
 			if (index == -1) {
 				Toast.makeText(getContext(), "ERROR", Toast.LENGTH_LONG).show();
 			} else {
-				if (selected == null) {
-					scaleRectF(rect, 0.9f, 500);
-				}
-				selected = elements.get(index);
+				final PieChartSlice tmp = slices.get(index);
+				addScaleTask(rect, 500, 0.9f, new Runnable() {
+					@Override
+					public void run() {
+						selected = tmp;
+					}
+				});
+				selected = slices.get(index);
 				invalidate();
-
 				Toast.makeText(getContext(), selected.getName(),
 						Toast.LENGTH_SHORT).show();
-				// Log.d(TAG, /* quadrant + " : " + */deltaX + " : "
-				// + deltaY + " : " + fromMid + " : " + inCircle + " : "
-				// + angleInDegrees + " : " + percentage + " : " + index);
+				onSliceSelectedListener.onSliceSelected(this, selected);
 			}
 		} else {
 			if (selected != null) {
-				selected = null;
+				addScaleTask(rect, 500, 1f, new Runnable() {
+					@Override
+					public void run() {
+						selected = null;
+					}
+				});
 				invalidate();
 			}
 		}
 		return super.onTouchEvent(event);
 	}
 
-	class ScalerRunnable extends Thread {
+	class ScalerThread extends Thread {
 		PieChartView chartView;
-		float factor;
+		OnScaleCompleteListener mListener;
 		long timeinmillis;
 		private RectF rect;
+		double scalePerMilli;
+		float from, to;
+		int defaultleft = (int) (getHeight() * 0.05f);
+		int defaultdiameter = (int) (getHeight() * 0.9f);
+		int defaulttop = (int) (getHeight() * 0.05f);
+		ArrayList<Runnable> tasks = new ArrayList<Runnable>();
 
-		public ScalerRunnable(PieChartView chartView, float factor,
-				long timeinmillis, RectF rect) {
+		public ScalerThread(PieChartView chartView, long timeinmillis,
+				RectF rect, float to, Runnable... tasks) {
 			super();
 			this.chartView = chartView;
-			this.factor = factor;
 			this.timeinmillis = timeinmillis;
 			this.rect = rect;
+			mListener = this.chartView;
+			this.to = to;
+			for (Runnable runnable : tasks) {
+				this.tasks.add(runnable);
+			}
 		}
 
 		long timePassed;
 
+		public void scaleRectF(float factor) {
+			rect.set(defaultleft, defaulttop, defaultleft + defaultdiameter,
+					defaulttop + defaultdiameter);
+			float diffHorizontal = (rect.right - rect.left) * (factor - 1f);
+			float diffVertical = (rect.bottom - rect.top) * (factor - 1f);
+
+			rect.top -= diffVertical / 2f;
+			rect.bottom += diffVertical / 2f;
+
+			rect.left -= diffHorizontal / 2f;
+			rect.right += diffHorizontal / 2f;
+			invalidate();
+		}
+
+		public void invalidate() {
+			chartView.post(new Runnable() {
+				@Override
+				public void run() {
+					chartView.invalidate();
+				}
+			});
+		}
+
 		@Override
 		public void run() {
+			this.from = rect.width() / defaultdiameter;
+			this.scalePerMilli = (from - to) / timeinmillis;
 			while (true) {
 				long t1 = System.currentTimeMillis();
 				if (timePassed > timeinmillis) {
-					int left = (int) (getHeight() * 0.05f);
-					int radius = (int) (getHeight() * 0.9f);
-					int top = (int) (getHeight() * 0.05f);
-					rect.set(left, top, left + radius, top + radius);
-					float diffHorizontal = (rect.right - rect.left)
-							* (factor - 1f);
-					float diffVertical = (rect.bottom - rect.top)
-							* (factor - 1f);
-
-					rect.top -= diffVertical / 2f;
-					rect.bottom += diffVertical / 2f;
-
-					rect.left -= diffHorizontal / 2f;
-					rect.right += diffHorizontal / 2f;
-					chartView.post(new Runnable() {
-						@Override
-						public void run() {
-							chartView.invalidate();
-						}
-					});
+					scaleRectF(to);
+					for (Runnable r : tasks) {
+						r.run();
+					}
+					invalidate();
+					mListener.onScaleComplete();
 					return;
 				} else {
-					int left = (int) (getHeight() * 0.05f);
-					int radius = (int) (getHeight() * 0.9f);
-					int top = (int) (getHeight() * 0.05f);
-					rect.set(left, top, left + radius, top + radius);
-					float fac = -(timePassed / (float) timeinmillis)
-							* (1f - factor);
-					float diffHorizontal = (rect.right - rect.left) * fac;
-					float diffVertical = (rect.bottom - rect.top) * fac;
-
-					rect.top -= diffVertical / 2f;
-					rect.bottom += diffVertical / 2f;
-
-					rect.left -= diffHorizontal / 2f;
-					rect.right += diffHorizontal / 2f;
+					scaleRectF((float) (from - scalePerMilli * timePassed));
 				}
-				chartView.post(new Runnable() {
-					@Override
-					public void run() {
-						chartView.invalidate();
-					}
-				});
 				try {
-					Thread.currentThread().sleep(50);
+					Thread.currentThread();
+					Thread.sleep(50);
 				} catch (Exception ex) {
 				}
-
 				timePassed += System.currentTimeMillis() - t1;
 			}
 		}
 	}
 
-	public void scaleRectF(RectF rect, float factor, long timeinmillis) {
-		new ScalerRunnable(this, factor, timeinmillis, rect).start();
-		// float diffHorizontal = (rect.right - rect.left) * (factor - 1f);
-		// float diffVertical = (rect.bottom - rect.top) * (factor - 1f);
-		//
-		// rect.top -= diffVertical / 2f;
-		// rect.bottom += diffVertical / 2f;
-		//
-		// rect.left -= diffHorizontal / 2f;
-		// rect.right += diffHorizontal / 2f;
+	public void addScaleTask(RectF rect, long timeinmillis, float to,
+			Runnable... tasks) {
+		scaleTaskBuffer.insert(new ScalerThread(this, timeinmillis, rect, to,
+				tasks));
 	}
 
 	public int getAmountOfElements() {
-		return elements.size();
+		return slices.size();
 	}
 
 	public void updateValues() {
@@ -324,40 +376,40 @@ public class PieChartView extends View {
 	}
 
 	public void updatePercentages() {
-		for (PieChartElement e : elements) {
+		for (PieChartSlice e : slices) {
 			e.updatePercentage(totalAmount);
 		}
 	}
 
 	public void updateTotalAmount() {
 		totalAmount = 0;
-		for (PieChartElement e : elements) {
+		for (PieChartSlice e : slices) {
 			totalAmount += e.getAmount();
 		}
 	}
 
 	public void reset() {
-		elements.clear();
+		slices.clear();
 		updateValues();
 	}
 
-	public void addElement(PieChartElement el) {
-		for (PieChartElement e : elements) {
+	public void addElement(PieChartSlice el) {
+		for (PieChartSlice e : slices) {
 			if (e.getName().equalsIgnoreCase(el.getName())) {
 				Log.e(TAG,
 						"There can not be 2 pie chart elements with the sam name!");
 				return;
 			}
 		}
-		elements.add(el);
+		slices.add(el);
 		updateValues();
 	}
 
 	public void removeElement(String name) {
-		for (PieChartElement e : elements) {
+		for (PieChartSlice e : slices) {
 			if (e.getName().equalsIgnoreCase(name)) {
 				selected = null;
-				elements.remove(e);
+				slices.remove(e);
 				break;
 			}
 		}
@@ -366,23 +418,28 @@ public class PieChartView extends View {
 
 	public void removeElement(int i) {
 		selected = null;
-		elements.remove(i);
+		slices.remove(i);
 		updateValues();
 	}
 
 	public void setAmount(int i, float a) {
-		elements.get(i).setAmount(a);
+		slices.get(i).setAmount(a);
 		updateValues();
 	}
 
 	public void setAmount(String name, float a) {
-		for (PieChartElement e : elements) {
+		for (PieChartSlice e : slices) {
 			if (e.getName().equalsIgnoreCase(name)) {
 				e.setAmount(a);
 				break;
 			}
 		}
 		updateValues();
+	}
+
+	public void select(int i) {
+		selected = slices.get(i);
+		invalidate();
 	}
 
 	public static Paint darken(Paint _color) {
@@ -397,4 +454,5 @@ public class PieChartView extends View {
 		newPaint.setStyle(Paint.Style.FILL);
 		return newPaint;
 	}
+
 }
