@@ -29,7 +29,7 @@ import com.google.android.gms.common.api.Status;
 import com.google.android.gms.plus.Plus;
 import com.google.android.gms.plus.model.people.Person;
 import com.nicba1010.utils.views.PieChartView;
-import com.nicba1010.utils.viewutils.PieChartSlice;
+import com.nicba1010.utils.views.utils.PieChartSlice;
 
 public class MainActivity extends Activity implements OnClickListener,
 		ConnectionCallbacks, OnConnectionFailedListener {

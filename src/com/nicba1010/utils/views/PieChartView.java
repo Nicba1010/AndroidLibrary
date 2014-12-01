@@ -2,8 +2,9 @@ package com.nicba1010.utils.views;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Queue;
 
+import android.annotation.SuppressLint;
+import android.app.Dialog;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -11,16 +12,16 @@ import android.graphics.Paint;
 import android.graphics.Paint.Align;
 import android.graphics.Rect;
 import android.graphics.RectF;
-import android.media.MediaScannerConnection.OnScanCompletedListener;
-import android.net.Uri;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Toast;
 
-import com.nicba1010.utils.viewutils.OnScaleCompleteListener;
-import com.nicba1010.utils.viewutils.PieChartSlice;
+import com.nicba1010.utils.views.utils.OnScaleCompleteListener;
+import com.nicba1010.utils.views.utils.PieChartSlice;
 
 public class PieChartView extends View implements OnScaleCompleteListener {
 	private static final String TAG = "PieChartView";
@@ -83,6 +84,7 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 	}
 
 	private void init() {
+
 		slices.add(new PieChartSlice("Female", 330, Color.RED));
 		slices.add(new PieChartSlice("Male", 550, Color.BLUE));
 		slices.add(new PieChartSlice("Sheep", 440, Color.LTGRAY));
@@ -184,17 +186,6 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 		}
 	}
 
-	@Override
-	protected void onFocusChanged(boolean gainFocus, int direction,
-			Rect previouslyFocusedRect) {
-		System.out.println(gainFocus);
-		if (!gainFocus) {
-			selected = null;
-			invalidate();
-		}
-		super.onFocusChanged(gainFocus, direction, previouslyFocusedRect);
-	}
-
 	public void drawOutlinedCenteredText(Canvas canvas, String text, float x,
 			float y, Paint paint, Paint outline, int sizeText) {
 		drawCeneteredText(canvas, text, x, y, outline, sizeText);
@@ -227,6 +218,7 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 		return Math.abs(temp - 360);
 	}
 
+	@SuppressLint("ClickableViewAccessibility")
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
 		if (event.getAction() == MotionEvent.ACTION_OUTSIDE) {
