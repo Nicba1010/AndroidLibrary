@@ -1,7 +1,6 @@
 package info.androidhive.gpluslogin;
 
 import java.io.InputStream;
-import java.util.Random;
 
 import android.app.Activity;
 import android.content.Intent;

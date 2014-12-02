@@ -144,16 +144,13 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 				last += 360 * e.getPercentage();
 			}
 			if (selected != null) {
-				from += !found ? e.getPercentage()* 0.99f : 0f;
+				from += !found ? e.getPercentage() : 0f;
 				if (selected.equals(e)) {
 					found = true;
 				}
 			}
 		}
 		for (PieChartSlice e : slices) {
-			System.out.println(total);
-			if(slices.indexOf(e)==slices.size()-1)
-				total =total;
 			canvas.drawLine(
 					rect.centerX(),
 					rect.centerY(),
@@ -162,9 +159,9 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 					(float) (rect.centerY() + (rect.width() / 2)
 							* Math.sin(Math.toRadians(total - 90))),
 					blackOutlinePaint);
-			total += e.getPercentage() * 360f * 0.99f;
+			total += e.getPercentage() * 360f;
 		}
-		from *= 360f ;
+		from *= 360f;
 		canvas.drawArc(rect, -90 + (selected != null ? from : 0),
 				360 - (selected != null ? selected.getPercentage() * 360 : 0),
 				true, blackOutlinePaint);
@@ -183,11 +180,11 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 
 	public void drawOutlinedCenteredText(Canvas canvas, String text, float x,
 			float y, Paint paint, Paint outline, int sizeText) {
-		drawCenteredText(canvas, text, x, y, outline, sizeText);
-		drawCenteredText(canvas, text, x, y, paint, sizeText);
+		drawCeneteredText(canvas, text, x, y, outline, sizeText);
+		drawCeneteredText(canvas, text, x, y, paint, sizeText);
 	}
 
-	public void drawCenteredText(Canvas canvas, String text, float x, float y,
+	public void drawCeneteredText(Canvas canvas, String text, float x, float y,
 			Paint paint, int sizeText) {
 		Paint textPaint = new Paint(paint);
 		textPaint.setTextAlign(Align.CENTER);
@@ -323,32 +320,25 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 		public void run() {
 			this.from = rect.width() / defaultdiameter;
 			this.scalePerMilli = (from - to) / timeinmillis;
-			if (from != to)
-				while (true) {
-					long t1 = System.currentTimeMillis();
-					if (timePassed > timeinmillis) {
-						scaleRectF(to);
-						for (Runnable r : tasks) {
-							r.run();
-						}
-						invalidate();
-						mListener.onScaleComplete();
-						return;
-					} else {
-						scaleRectF((float) (from - scalePerMilli * timePassed));
+			while (true) {
+				long t1 = System.currentTimeMillis();
+				if (timePassed > timeinmillis) {
+					scaleRectF(to);
+					for (Runnable r : tasks) {
+						r.run();
 					}
-					try {
-						Thread.currentThread();
-						Thread.sleep(50);
-					} catch (Exception ex) {
-					}
-					timePassed += System.currentTimeMillis() - t1;
+					invalidate();
+					mListener.onScaleComplete();
+					return;
+				} else {
+					scaleRectF((float) (from - scalePerMilli * timePassed));
 				}
-			else {
-				for (Runnable r : tasks) {
-					r.run();
+				try {
+					Thread.currentThread();
+					Thread.sleep(50);
+				} catch (Exception ex) {
 				}
-				mListener.onScaleComplete();
+				timePassed += System.currentTimeMillis() - t1;
 			}
 		}
 	}
@@ -359,7 +349,7 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 				tasks));
 	}
 
-	public int getAmountOfElements() {
+	public int getAmountOfSlices() {
 		return slices.size();
 	}
 
@@ -391,7 +381,7 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 		for (PieChartSlice e : slices) {
 			if (e.getName().equalsIgnoreCase(el.getName())) {
 				Log.e(TAG,
-						"There can not be 2 pie chart slices with the same name!");
+						"There can not be 2 pie chart elements with the sam name!");
 				return;
 			}
 		}
@@ -399,7 +389,7 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 		updateValues();
 	}
 
-	public void removeElement(String name) {
+	public void removeSlice(String name) {
 		for (PieChartSlice e : slices) {
 			if (e.getName().equalsIgnoreCase(name)) {
 				selected = null;
@@ -410,7 +400,7 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 		updateValues();
 	}
 
-	public void removeElement(int i) {
+	public void removeSlice(int i) {
 		selected = null;
 		slices.remove(i);
 		updateValues();
