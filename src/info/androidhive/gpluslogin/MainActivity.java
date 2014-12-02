@@ -1,18 +1,21 @@
 package info.androidhive.gpluslogin;
 
 import java.io.InputStream;
+import java.util.Random;
 
 import android.app.Activity;
 import android.content.Intent;
 import android.content.IntentSender.SendIntentException;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.View.OnFocusChangeListener;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -76,10 +79,23 @@ public class MainActivity extends Activity implements OnClickListener,
 		txtEmail = (TextView) findViewById(R.id.txtEmail);
 		llProfileLayout = (LinearLayout) findViewById(R.id.llProfile);
 		pie = (PieChartView) findViewById(R.id.pie);
+
+		pie.addSlice(new PieChartSlice("Female", 1000, Color.RED));
+		pie.addSlice(new PieChartSlice("Male", 1300, Color.BLUE));
+		pie.addSlice(new PieChartSlice("Sheep", 800, Color.LTGRAY));
+		pie.addSlice(new PieChartSlice("Pig", 2000, Color.rgb(255, 192, 203)));
+		pie.addSlice(new PieChartSlice("Grass", 500, Color.GREEN));
+		pie.addSlice(new PieChartSlice("Cow", 666, Color.rgb(139, 69, 19)));
 		pie.setOnSliceSelectedListener(new PieChartView.OnSliceSelectedListener() {
 			@Override
 			public void onSliceSelected(View v, PieChartSlice e) {
 				System.out.println(e.getName());
+			}
+		});
+		pie.setOnFocusChangeListener(new OnFocusChangeListener() {
+			@Override
+			public void onFocusChange(View v, boolean hasFocus) {
+				System.out.println(hasFocus);
 			}
 		});
 

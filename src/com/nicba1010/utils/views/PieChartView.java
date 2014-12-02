@@ -4,20 +4,16 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 
 import android.annotation.SuppressLint;
-import android.app.Dialog;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Paint.Align;
-import android.graphics.Rect;
 import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.Window;
-import android.view.WindowManager;
 import android.widget.Toast;
 
 import com.nicba1010.utils.views.utils.OnScaleCompleteListener;
@@ -84,10 +80,6 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 	}
 
 	private void init() {
-
-		slices.add(new PieChartSlice("Female", 330, Color.RED));
-		slices.add(new PieChartSlice("Male", 550, Color.BLUE));
-		slices.add(new PieChartSlice("Sheep", 440, Color.LTGRAY));
 		rect = new RectF();
 		rectSelect = new RectF();
 		blackOutlinePaint = new Paint();
@@ -152,13 +144,16 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 				last += 360 * e.getPercentage();
 			}
 			if (selected != null) {
-				from += !found ? e.getPercentage() : 0f;
+				from += !found ? e.getPercentage()* 0.99f : 0f;
 				if (selected.equals(e)) {
 					found = true;
 				}
 			}
 		}
 		for (PieChartSlice e : slices) {
+			System.out.println(total);
+			if(slices.indexOf(e)==slices.size()-1)
+				total =total;
 			canvas.drawLine(
 					rect.centerX(),
 					rect.centerY(),
@@ -167,9 +162,9 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 					(float) (rect.centerY() + (rect.width() / 2)
 							* Math.sin(Math.toRadians(total - 90))),
 					blackOutlinePaint);
-			total += e.getPercentage() * 360f;
+			total += e.getPercentage() * 360f * 0.99f;
 		}
-		from *= 360f;
+		from *= 360f ;
 		canvas.drawArc(rect, -90 + (selected != null ? from : 0),
 				360 - (selected != null ? selected.getPercentage() * 360 : 0),
 				true, blackOutlinePaint);
@@ -188,11 +183,11 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 
 	public void drawOutlinedCenteredText(Canvas canvas, String text, float x,
 			float y, Paint paint, Paint outline, int sizeText) {
-		drawCeneteredText(canvas, text, x, y, outline, sizeText);
-		drawCeneteredText(canvas, text, x, y, paint, sizeText);
+		drawCenteredText(canvas, text, x, y, outline, sizeText);
+		drawCenteredText(canvas, text, x, y, paint, sizeText);
 	}
 
-	public void drawCeneteredText(Canvas canvas, String text, float x, float y,
+	public void drawCenteredText(Canvas canvas, String text, float x, float y,
 			Paint paint, int sizeText) {
 		Paint textPaint = new Paint(paint);
 		textPaint.setTextAlign(Align.CENTER);
@@ -328,25 +323,32 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 		public void run() {
 			this.from = rect.width() / defaultdiameter;
 			this.scalePerMilli = (from - to) / timeinmillis;
-			while (true) {
-				long t1 = System.currentTimeMillis();
-				if (timePassed > timeinmillis) {
-					scaleRectF(to);
-					for (Runnable r : tasks) {
-						r.run();
+			if (from != to)
+				while (true) {
+					long t1 = System.currentTimeMillis();
+					if (timePassed > timeinmillis) {
+						scaleRectF(to);
+						for (Runnable r : tasks) {
+							r.run();
+						}
+						invalidate();
+						mListener.onScaleComplete();
+						return;
+					} else {
+						scaleRectF((float) (from - scalePerMilli * timePassed));
 					}
-					invalidate();
-					mListener.onScaleComplete();
-					return;
-				} else {
-					scaleRectF((float) (from - scalePerMilli * timePassed));
+					try {
+						Thread.currentThread();
+						Thread.sleep(50);
+					} catch (Exception ex) {
+					}
+					timePassed += System.currentTimeMillis() - t1;
 				}
-				try {
-					Thread.currentThread();
-					Thread.sleep(50);
-				} catch (Exception ex) {
+			else {
+				for (Runnable r : tasks) {
+					r.run();
 				}
-				timePassed += System.currentTimeMillis() - t1;
+				mListener.onScaleComplete();
 			}
 		}
 	}
@@ -385,11 +387,11 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 		updateValues();
 	}
 
-	public void addElement(PieChartSlice el) {
+	public void addSlice(PieChartSlice el) {
 		for (PieChartSlice e : slices) {
 			if (e.getName().equalsIgnoreCase(el.getName())) {
 				Log.e(TAG,
-						"There can not be 2 pie chart elements with the sam name!");
+						"There can not be 2 pie chart slices with the same name!");
 				return;
 			}
 		}
