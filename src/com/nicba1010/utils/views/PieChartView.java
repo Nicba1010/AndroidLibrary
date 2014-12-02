@@ -84,16 +84,16 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 		addSlice(new PieChartSlice("Female", 1000, Color.RED));
 		addSlice(new PieChartSlice("Male", 1300, Color.BLUE));
 		addSlice(new PieChartSlice("Sheep", 800, Color.LTGRAY));
-		 addSlice(new PieChartSlice("Pig", 5000, Color.rgb(255, 192, 203)));
-		 addSlice(new PieChartSlice("Grass", 500, Color.GREEN));
-		 addSlice(new PieChartSlice("Cow", 666, Color.rgb(139, 69, 19)));
+		addSlice(new PieChartSlice("Pig", 500, Color.rgb(255, 192, 203)));
+		addSlice(new PieChartSlice("Grass", 1500, Color.GREEN));
+		addSlice(new PieChartSlice("Cow", 500, Color.rgb(139, 69, 19)));
 		rect = new RectF();
 		rectSelect = new RectF();
 		blackOutlinePaint = new Paint();
 		blackOutlinePaint.setColor(Color.BLACK);
 		blackOutlinePaint.setAntiAlias(true);
 		blackOutlinePaint.setStyle(Paint.Style.STROKE);
-		blackOutlinePaint.setStrokeWidth(0);
+		blackOutlinePaint.setStrokeWidth(2);
 		black = new Paint();
 		black.setColor(Color.BLACK);
 		black.setAntiAlias(true);
@@ -114,7 +114,7 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 	Paint black;
 	Paint white;
 
-	public static final float resize = 0.5f;
+	public static final float resize = 0.995f;
 
 	@Override
 	protected void onDraw(Canvas canvas) {
@@ -127,12 +127,8 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 		if (selected == null && !scaleTaskBuffer.executing)
 			rect.set(left, top, left + diameter, top + diameter);
 		rectSelect.set(left, top, left + diameter, top + diameter);
-		float from = 0;
-		float total = 0;
-		boolean found = false;
-
 		for (PieChartSlice e : slices) {
-			float width = (int)(e.getPercentage() * 360f);
+			float width = (int) (e.getPercentage() * 360f);
 			if (slices.indexOf(e) == (slices.size() - 1)) {
 				canvas.drawArc(
 						e.equals(selected) ? rectSelect : rect,
@@ -145,48 +141,25 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 				canvas.drawArc(
 						e.equals(selected) ? rectSelect : rect,
 						-90 + last,
-						(360 * e.getPercentage()),
+						width,
 						true,
 						selected != null && e.equals(selected) == false ? darken(e
 								.getColor()) : e.getColor());
 				last += width;
 			}
-			if (selected != null) {
-				from += !found ? e.getPercentage() : 0f;
-				if (selected.equals(e)) {
-					found = true;
-				}
-			}
 		}
 		last = 0;
 		for (PieChartSlice e : slices) {
-			float width = (int)(e.getPercentage() * 360f);
-			System.out.println(width);
+			float width = (int) (e.getPercentage() * 360f);
 			if (slices.indexOf(e) == (slices.size() - 1)) {
 				canvas.drawArc(e.equals(selected) ? rectSelect : rect, -90
 						+ last, 360f - last, true, blackOutlinePaint);
 			} else {
 				canvas.drawArc(e.equals(selected) ? rectSelect : rect, -90
-						+ last, width, true,
-						blackOutlinePaint);
+						+ last, width, true, blackOutlinePaint);
 				last += width;
 			}
 		}
-		// for (PieChartSlice e : slices) {
-		// canvas.drawLine(
-		// rect.centerX(),
-		// rect.centerY(),
-		// (float) (rect.centerX() + (rect.width() / 2)
-		// * Math.cos(Math.toRadians(total - 90))),
-		// (float) (rect.centerY() + (rect.width() / 2)
-		// * Math.sin(Math.toRadians(total - 90))),
-		// blackOutlinePaint);
-		// total += e.getPercentage() * 360f;
-		// }
-		// from *= 360f;
-		// canvas.drawArc(rect, -90 + (selected != null ? from : 0),
-		// 360 - (selected != null ? selected.getPercentage() * 360 : 0),
-		// true, blackOutlinePaint);
 		if (selected != null) {
 			drawOutlinedCenteredText(
 					canvas,
@@ -232,11 +205,6 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 	@SuppressLint("ClickableViewAccessibility")
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
-		if (event.getAction() == MotionEvent.ACTION_OUTSIDE) {
-			selected = null;
-			invalidate();
-			return true;
-		}
 		double deltaX = event.getX() - rect.width() / 2 - rect.left;
 		double deltaY = -(event.getY() - rect.height() / 2 - rect.top);
 		double fromMid = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
@@ -267,8 +235,6 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 				});
 				selected = slices.get(index);
 				invalidate();
-				Toast.makeText(getContext(), selected.getName(),
-						Toast.LENGTH_SHORT).show();
 				onSliceSelectedListener.onSliceSelected(this, selected);
 			}
 		} else {
@@ -361,7 +327,7 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 				}
 				try {
 					Thread.currentThread();
-					Thread.sleep(50);
+					Thread.sleep(33);
 				} catch (Exception ex) {
 				}
 				timePassed += System.currentTimeMillis() - t1;
