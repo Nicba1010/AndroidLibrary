@@ -79,12 +79,12 @@ public class MainActivity extends Activity implements OnClickListener,
 		llProfileLayout = (LinearLayout) findViewById(R.id.llProfile);
 		pie = (PieChartView) findViewById(R.id.pie);
 
-		pie.addSlice(new PieChartSlice("Female", 1000, Color.RED));
-		pie.addSlice(new PieChartSlice("Male", 1300, Color.BLUE));
-		pie.addSlice(new PieChartSlice("Sheep", 800, Color.LTGRAY));
-		pie.addSlice(new PieChartSlice("Pig", 2000, Color.rgb(255, 192, 203)));
-		pie.addSlice(new PieChartSlice("Grass", 500, Color.GREEN));
-		pie.addSlice(new PieChartSlice("Cow", 666, Color.rgb(139, 69, 19)));
+//		pie.addSlice(new PieChartSlice("Female", 1000, Color.RED));
+//		pie.addSlice(new PieChartSlice("Male", 1300, Color.BLUE));
+//		pie.addSlice(new PieChartSlice("Sheep", 800, Color.LTGRAY));
+//		pie.addSlice(new PieChartSlice("Pig", 2000, Color.rgb(255, 192, 203)));
+//		pie.addSlice(new PieChartSlice("Grass", 500, Color.GREEN));
+//		pie.addSlice(new PieChartSlice("Cow", 666, Color.rgb(139, 69, 19)));
 		pie.setOnSliceSelectedListener(new PieChartView.OnSliceSelectedListener() {
 			@Override
 			public void onSliceSelected(View v, PieChartSlice e) {

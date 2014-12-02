@@ -64,17 +64,21 @@ public class PieChartSlice {
 		color.setColor(Color.rgb(r, g, b));
 		color.setAntiAlias(true);
 		color.setStyle(Paint.Style.FILL);
+		color.setStrokeWidth(0);
 	}
 
 	public void setColor(Paint _color) {
 		color = _color;
 		color.setAntiAlias(true);
 		color.setStyle(Paint.Style.FILL);
+		color.setStrokeWidth(0);
 	}
 
 	public void setColor(int _color) {
 		color.setColor(_color);
 		color.setAntiAlias(true);
 		color.setStyle(Paint.Style.FILL);
+		color.setStrokeWidth(0);
 	}
 }
+

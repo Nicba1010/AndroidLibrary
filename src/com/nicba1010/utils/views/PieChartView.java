@@ -80,13 +80,20 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 	}
 
 	private void init() {
+
+		addSlice(new PieChartSlice("Female", 1000, Color.RED));
+		addSlice(new PieChartSlice("Male", 1300, Color.BLUE));
+		addSlice(new PieChartSlice("Sheep", 800, Color.LTGRAY));
+		 addSlice(new PieChartSlice("Pig", 5000, Color.rgb(255, 192, 203)));
+		 addSlice(new PieChartSlice("Grass", 500, Color.GREEN));
+		 addSlice(new PieChartSlice("Cow", 666, Color.rgb(139, 69, 19)));
 		rect = new RectF();
 		rectSelect = new RectF();
 		blackOutlinePaint = new Paint();
 		blackOutlinePaint.setColor(Color.BLACK);
 		blackOutlinePaint.setAntiAlias(true);
 		blackOutlinePaint.setStyle(Paint.Style.STROKE);
-		blackOutlinePaint.setStrokeWidth(2);
+		blackOutlinePaint.setStrokeWidth(0);
 		black = new Paint();
 		black.setColor(Color.BLACK);
 		black.setAntiAlias(true);
@@ -95,7 +102,6 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 		white.setAntiAlias(true);
 		white.setStyle(Paint.Style.STROKE);
 		white.setStrokeWidth(3);
-		blackOutlinePaint.setStrokeWidth(2);
 		updateValues();
 	}
 
@@ -108,7 +114,7 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 	Paint black;
 	Paint white;
 
-	float rads = 0;
+	public static final float resize = 0.5f;
 
 	@Override
 	protected void onDraw(Canvas canvas) {
@@ -124,7 +130,9 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 		float from = 0;
 		float total = 0;
 		boolean found = false;
+
 		for (PieChartSlice e : slices) {
+			float width = (int)(e.getPercentage() * 360f);
 			if (slices.indexOf(e) == (slices.size() - 1)) {
 				canvas.drawArc(
 						e.equals(selected) ? rectSelect : rect,
@@ -141,7 +149,7 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 						true,
 						selected != null && e.equals(selected) == false ? darken(e
 								.getColor()) : e.getColor());
-				last += 360 * e.getPercentage();
+				last += width;
 			}
 			if (selected != null) {
 				from += !found ? e.getPercentage() : 0f;
@@ -150,25 +158,36 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 				}
 			}
 		}
+		last = 0;
 		for (PieChartSlice e : slices) {
-			canvas.drawLine(
-					rect.centerX(),
-					rect.centerY(),
-					(float) (rect.centerX() + (rect.width() / 2)
-							* Math.cos(Math.toRadians(total - 90))),
-					(float) (rect.centerY() + (rect.width() / 2)
-							* Math.sin(Math.toRadians(total - 90))),
-					blackOutlinePaint);
-			total += e.getPercentage() * 360f;
+			float width = (int)(e.getPercentage() * 360f);
+			System.out.println(width);
+			if (slices.indexOf(e) == (slices.size() - 1)) {
+				canvas.drawArc(e.equals(selected) ? rectSelect : rect, -90
+						+ last, 360f - last, true, blackOutlinePaint);
+			} else {
+				canvas.drawArc(e.equals(selected) ? rectSelect : rect, -90
+						+ last, width, true,
+						blackOutlinePaint);
+				last += width;
+			}
 		}
-		from *= 360f;
-		canvas.drawArc(rect, -90 + (selected != null ? from : 0),
-				360 - (selected != null ? selected.getPercentage() * 360 : 0),
-				true, blackOutlinePaint);
+		// for (PieChartSlice e : slices) {
+		// canvas.drawLine(
+		// rect.centerX(),
+		// rect.centerY(),
+		// (float) (rect.centerX() + (rect.width() / 2)
+		// * Math.cos(Math.toRadians(total - 90))),
+		// (float) (rect.centerY() + (rect.width() / 2)
+		// * Math.sin(Math.toRadians(total - 90))),
+		// blackOutlinePaint);
+		// total += e.getPercentage() * 360f;
+		// }
+		// from *= 360f;
+		// canvas.drawArc(rect, -90 + (selected != null ? from : 0),
+		// 360 - (selected != null ? selected.getPercentage() * 360 : 0),
+		// true, blackOutlinePaint);
 		if (selected != null) {
-			canvas.drawArc(rectSelect, -90 + from - selected.getPercentage()
-					* 360, selected.getPercentage() * 360, true,
-					blackOutlinePaint);
 			drawOutlinedCenteredText(
 					canvas,
 					selected.getName() + " "
@@ -320,6 +339,13 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 		public void run() {
 			this.from = rect.width() / defaultdiameter;
 			this.scalePerMilli = (from - to) / timeinmillis;
+			if (from == to) {
+				for (Runnable r : tasks) {
+					r.run();
+				}
+				mListener.onScaleComplete();
+				return;
+			}
 			while (true) {
 				long t1 = System.currentTimeMillis();
 				if (timePassed > timeinmillis) {
