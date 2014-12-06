@@ -1,21 +1,27 @@
 package info.androidhive.gpluslogin;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 import android.app.Activity;
+import android.app.Fragment;
+import android.app.FragmentTransaction;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender.SendIntentException;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.view.View.OnFocusChangeListener;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -28,13 +34,13 @@ import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
 import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.Status;
+import com.google.android.gms.gcm.GoogleCloudMessaging;
 import com.google.android.gms.plus.Plus;
 import com.google.android.gms.plus.model.people.Person;
 import com.nicba1010.utils.views.PieChartView;
 import com.nicba1010.utils.views.utils.PieChartSlice;
 
-public class MainActivity extends Activity implements OnClickListener,
-		ConnectionCallbacks, OnConnectionFailedListener {
+public class MainActivity extends Activity implements OnClickListener, ConnectionCallbacks, OnConnectionFailedListener {
 
 	private static final int RC_SIGN_IN = 0;
 	// Logcat tag
@@ -64,6 +70,57 @@ public class MainActivity extends Activity implements OnClickListener,
 	private LinearLayout llProfileLayout;
 	private PieChartView pie;
 
+	private final static int PLAY_SERVICES_RESOLUTION_REQUEST = 9000;
+	String SENDER_ID = "938069732109";
+	GoogleCloudMessaging gcm;
+	SharedPreferences prefs;
+	Context context;
+	String regid;
+
+	private boolean checkPlayServices() {
+		int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
+		if (resultCode != ConnectionResult.SUCCESS) {
+			if (GooglePlayServicesUtil.isUserRecoverableError(resultCode)) {
+				GooglePlayServicesUtil.getErrorDialog(resultCode, this, PLAY_SERVICES_RESOLUTION_REQUEST).show();
+			} else {
+				Log.i(TAG, "This device is not supported.");
+				finish();
+			}
+			return false;
+		}
+		return true;
+	}
+
+	private class Register extends AsyncTask<String, String, String> {
+		@Override
+		protected String doInBackground(String... args) {
+			try {
+				if (gcm == null) {
+					gcm = GoogleCloudMessaging.getInstance(context);
+					regid = gcm.register(SENDER_ID);
+					Log.e("RegId", regid);
+					SharedPreferences.Editor edit = prefs.edit();
+					edit.putString("REG_ID", regid);
+					edit.commit();
+				}
+				return regid;
+			} catch (IOException ex) {
+				Log.e("Error", ex.getMessage());
+				return "Fails";
+			}
+		}
+
+		@Override
+		protected void onPostExecute(String json) {
+			Fragment reg = new LoginFragment();
+			FragmentTransaction ft = getFragmentManager().beginTransaction();
+			ft.replace(R.id.content_frame, reg);
+			ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE);
+			ft.addToBackStack(null);
+			ft.commit();
+		}
+	}
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -78,19 +135,39 @@ public class MainActivity extends Activity implements OnClickListener,
 		txtEmail = (TextView) findViewById(R.id.txtEmail);
 		llProfileLayout = (LinearLayout) findViewById(R.id.llProfile);
 		pie = (PieChartView) findViewById(R.id.pie);
+		prefs = getSharedPreferences("Chat", 0);
+		context = getApplicationContext();
+		if (!prefs.getString("REG_FROM", "").isEmpty()) {
+			Fragment user = new UserFragment();
+			FragmentTransaction ft = getFragmentManager().beginTransaction();
+			ft.replace(R.id.content_frame, user);
+			ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE);
+			ft.addToBackStack(null);
+			ft.commit();
+		} else if (!prefs.getString("REG_ID", "").isEmpty()) {
+			Fragment reg = new LoginFragment();
+			FragmentTransaction ft = getFragmentManager().beginTransaction();
+			ft.replace(R.id.content_frame, reg);
+			ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE);
+			ft.addToBackStack(null);
+			ft.commit();
+		} else if (checkPlayServices()) {
+			new Register().execute();
+		} else {
+			Toast.makeText(getApplicationContext(), "This device is not supported", Toast.LENGTH_SHORT).show();
+		}
 
-		// pie.addSlice(new PieChartSlice("Female", 1000, Color.RED));
-		// pie.addSlice(new PieChartSlice("Male", 1300, Color.BLUE));
-		// pie.addSlice(new PieChartSlice("Sheep", 800, Color.LTGRAY));
-		// pie.addSlice(new PieChartSlice("Pig", 2000, Color.rgb(255, 192,
-		// 203)));
-		// pie.addSlice(new PieChartSlice("Grass", 500, Color.GREEN));
-		// pie.addSlice(new PieChartSlice("Cow", 666, Color.rgb(139, 69, 19)));
+		pie.addSlice(new PieChartSlice("Female", 1000, Color.RED));
+		pie.addSlice(new PieChartSlice("Male", 1300, Color.BLUE));
+		pie.addSlice(new PieChartSlice("Sheep", 800, Color.LTGRAY));
+		pie.addSlice(new PieChartSlice("Pig", 2000, Color.rgb(255, 192, 203)));
+		pie.addSlice(new PieChartSlice("Stivi iz dumb", 2000, Color.WHITE));
+		pie.addSlice(new PieChartSlice("Grass", 500, Color.GREEN));
+		pie.addSlice(new PieChartSlice("Cow", 666, Color.rgb(139, 69, 19)));
 		pie.setOnSliceSelectedListener(new PieChartView.OnSliceSelectedListener() {
 			@Override
 			public void onSliceSelected(View v, PieChartSlice e) {
-				Toast.makeText(getApplicationContext(), e.getName(),
-						Toast.LENGTH_SHORT).show();
+				Toast.makeText(getApplicationContext(), e.getName(), Toast.LENGTH_SHORT).show();
 			}
 		});
 
@@ -99,10 +176,7 @@ public class MainActivity extends Activity implements OnClickListener,
 		btnSignOut.setOnClickListener(this);
 		btnRevokeAccess.setOnClickListener(this);
 
-		mGoogleApiClient = new GoogleApiClient.Builder(this)
-				.addConnectionCallbacks(this)
-				.addOnConnectionFailedListener(this).addApi(Plus.API)
-				.addScope(Plus.SCOPE_PLUS_LOGIN).build();
+		mGoogleApiClient = new GoogleApiClient.Builder(this).addConnectionCallbacks(this).addOnConnectionFailedListener(this).addApi(Plus.API).addScope(Plus.SCOPE_PLUS_LOGIN).build();
 	}
 
 	protected void onStart() {
@@ -135,8 +209,7 @@ public class MainActivity extends Activity implements OnClickListener,
 	@Override
 	public void onConnectionFailed(ConnectionResult result) {
 		if (!result.hasResolution()) {
-			GooglePlayServicesUtil.getErrorDialog(result.getErrorCode(), this,
-					0).show();
+			GooglePlayServicesUtil.getErrorDialog(result.getErrorCode(), this, 0).show();
 			return;
 		}
 
@@ -155,8 +228,7 @@ public class MainActivity extends Activity implements OnClickListener,
 	}
 
 	@Override
-	protected void onActivityResult(int requestCode, int responseCode,
-			Intent intent) {
+	protected void onActivityResult(int requestCode, int responseCode, Intent intent) {
 		if (requestCode == RC_SIGN_IN) {
 			if (responseCode != RESULT_OK) {
 				mSignInClicked = false;
@@ -206,16 +278,13 @@ public class MainActivity extends Activity implements OnClickListener,
 	private void getProfileInformation() {
 		try {
 			if (Plus.PeopleApi.getCurrentPerson(mGoogleApiClient) != null) {
-				Person currentPerson = Plus.PeopleApi
-						.getCurrentPerson(mGoogleApiClient);
+				Person currentPerson = Plus.PeopleApi.getCurrentPerson(mGoogleApiClient);
 				String personName = currentPerson.getDisplayName();
 				String personPhotoUrl = currentPerson.getImage().getUrl();
 				String personGooglePlusProfile = currentPerson.getUrl();
 				String email = Plus.AccountApi.getAccountName(mGoogleApiClient);
 
-				Log.e(TAG, "Name: " + personName + ", plusProfile: "
-						+ personGooglePlusProfile + ", email: " + email
-						+ ", Image: " + personPhotoUrl);
+				Log.e(TAG, "Name: " + personName + ", plusProfile: " + personGooglePlusProfile + ", email: " + email + ", Image: " + personPhotoUrl);
 
 				txtName.setText(personName);
 				txtEmail.setText(email);
@@ -223,15 +292,12 @@ public class MainActivity extends Activity implements OnClickListener,
 				// by default the profile url gives 50x50 px image only
 				// we can replace the value with whatever dimension we want by
 				// replacing sz=X
-				personPhotoUrl = personPhotoUrl.substring(0,
-						personPhotoUrl.length() - 2)
-						+ PROFILE_PIC_SIZE;
+				personPhotoUrl = personPhotoUrl.substring(0, personPhotoUrl.length() - 2) + PROFILE_PIC_SIZE;
 
 				new LoadProfileImage(imgProfilePic).execute(personPhotoUrl);
 
 			} else {
-				Toast.makeText(getApplicationContext(),
-						"Person information is null", Toast.LENGTH_LONG).show();
+				Toast.makeText(getApplicationContext(), "Person information is null", Toast.LENGTH_LONG).show();
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -300,16 +366,15 @@ public class MainActivity extends Activity implements OnClickListener,
 	private void revokeGplusAccess() {
 		if (mGoogleApiClient.isConnected()) {
 			Plus.AccountApi.clearDefaultAccount(mGoogleApiClient);
-			Plus.AccountApi.revokeAccessAndDisconnect(mGoogleApiClient)
-					.setResultCallback(new ResultCallback<Status>() {
-						@Override
-						public void onResult(Status arg0) {
-							Log.e(TAG, "User access revoked!");
-							mGoogleApiClient.connect();
-							updateUI(false);
-						}
+			Plus.AccountApi.revokeAccessAndDisconnect(mGoogleApiClient).setResultCallback(new ResultCallback<Status>() {
+				@Override
+				public void onResult(Status arg0) {
+					Log.e(TAG, "User access revoked!");
+					mGoogleApiClient.connect();
+					updateUI(false);
+				}
 
-					});
+			});
 		}
 	}
 

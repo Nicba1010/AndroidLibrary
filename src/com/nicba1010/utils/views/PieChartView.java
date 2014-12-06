@@ -80,13 +80,6 @@ public class PieChartView extends View implements OnScaleCompleteListener {
 	}
 
 	private void init() {
-
-		addSlice(new PieChartSlice("Female", 1000, Color.RED));
-		addSlice(new PieChartSlice("Male", 1300, Color.BLUE));
-		addSlice(new PieChartSlice("Sheep", 800, Color.LTGRAY));
-		addSlice(new PieChartSlice("Pig", 500, Color.rgb(255, 192, 203)));
-		addSlice(new PieChartSlice("Grass", 1500, Color.GREEN));
-		addSlice(new PieChartSlice("Cow", 500, Color.rgb(139, 69, 19)));
 		rect = new RectF();
 		rectSelect = new RectF();
 		blackOutlinePaint = new Paint();
